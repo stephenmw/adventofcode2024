@@ -1,0 +1,17 @@
+[package]
+name = "adventofcode2024"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ahash = "0.8"
+anyhow = "1.0"
+arrayvec = "0.7"
+clap = { version = "4", features = ["derive"]}
+lazy_static = "1.5"
+nom = "8"
+rand = "0.9"
+rayon = "1"
+
+[profile.release]
+panic = 'abort'
