@@ -1,110 +1,78 @@
-use ahash::{AHashMap, AHashSet};
+use ahash::AHashSet;
 
 use crate::solutions::prelude::*;
 
 pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
     let (rules, updates) = parse!(input);
-    let after_rules = {
-        let mut m: AHashMap<u32, AHashSet<u32>> = AHashMap::new();
-        for rule in rules {
-            m.entry(rule.before).or_default().insert(rule.after);
-        }
-        m
-    };
+
+    let ruleset = RuleSet::new(&rules);
 
     let ans: u32 = updates
         .iter()
-        .filter(|update| follows_rules(&after_rules, update))
+        .filter(|update| follows_rules(&ruleset, update))
         .map(|update| update[update.len() / 2])
         .sum();
 
     Ok(ans.to_string())
 }
 
-fn follows_rules(rules: &AHashMap<u32, AHashSet<u32>>, update: &[u32]) -> bool {
-    let mut seen = AHashSet::new();
-    for &page in update {
-        if rules
-            .get(&page)
-            .map(|after| !seen.is_disjoint(after))
-            .unwrap_or(false)
-        {
-            return false;
-        }
-
-        seen.insert(page);
-    }
-
-    true
+fn follows_rules(rules: &RuleSet, update: &[u32]) -> bool {
+    update.is_sorted_by(|a, b| rules.partial_cmp(*a, *b).unwrap().is_lt())
 }
 
 pub fn problem2(input: &str) -> Result<String, anyhow::Error> {
     let (rules, updates) = parse!(input);
-    let after_rules = {
-        let mut m: AHashMap<u32, AHashSet<u32>> = AHashMap::new();
-        for rule in &rules {
-            m.entry(rule.before).or_default().insert(rule.after);
-        }
-        m
-    };
-    let before_rules = {
-        let mut m: AHashMap<u32, AHashSet<u32>> = AHashMap::new();
-        for rule in &rules {
-            m.entry(rule.after).or_default().insert(rule.before);
-        }
-        m
-    };
 
-    fn reorder(rules: &AHashMap<u32, AHashSet<u32>>, update: &[u32]) -> Vec<u32> {
-        let pages = AHashSet::from_iter(update.iter().copied());
-        let mut relevant_rules: AHashMap<u32, AHashSet<u32>> =
-            AHashMap::from_iter(update.iter().copied().map(|p| {
-                (
-                    p,
-                    rules
-                        .get(&p)
-                        .map(|x| x.intersection(&pages).copied().collect())
-                        .unwrap_or_default(),
-                )
-            }));
+    let ruleset = RuleSet::new(&rules);
 
-        // Remove leaves from relevant rules and add to froniter
-        let mut frontier: Vec<u32> = relevant_rules
-            .extract_if(|_, v| v.is_empty())
-            .map(|(k, _)| k)
-            .collect();
-
-        let mut ret = Vec::new();
-
-        while let Some(x) = frontier.pop() {
-            ret.push(x);
-
-            // remove current page and if the new page is ready add to frontier
-            let new_leaves = relevant_rules
-                .extract_if(|_, v| {
-                    v.remove(&x);
-                    v.is_empty()
-                })
-                .map(|(k, _)| k);
-            frontier.extend(new_leaves);
-        }
-
+    fn reorder(rules: &RuleSet, update: &[u32]) -> Vec<u32> {
+        let mut ret = update.to_vec();
+        ret.sort_unstable_by(|a, b| rules.partial_cmp(*a, *b).unwrap());
         ret
     }
 
     let ans: u32 = updates
         .iter()
-        .filter(|update| !follows_rules(&after_rules, update))
-        .map(|update| reorder(&before_rules, update))
+        .filter(|update| !follows_rules(&ruleset, update))
+        .map(|update| reorder(&ruleset, update))
         .map(|update| update[update.len() / 2])
         .sum();
 
     Ok(ans.to_string())
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Rule {
     before: u32,
     after: u32,
+}
+
+struct RuleSet {
+    rules: AHashSet<Rule>,
+}
+
+impl RuleSet {
+    fn new(rule: &[Rule]) -> Self {
+        Self {
+            rules: AHashSet::from_iter(rule.iter().copied()),
+        }
+    }
+
+    fn partial_cmp(&self, a: u32, b: u32) -> Option<std::cmp::Ordering> {
+        if self.rules.contains(&Rule {
+            before: a,
+            after: b,
+        }) {
+            Some(std::cmp::Ordering::Less)
+        } else if self.rules.contains(&Rule {
+            before: b,
+            after: a,
+        }) {
+            Some(std::cmp::Ordering::Greater)
+        } else {
+            None
+        }
+    }
 }
 
 mod parser {
