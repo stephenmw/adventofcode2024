@@ -1,4 +1,5 @@
 mod parser;
+mod range;
 mod solutions;
 
 #[macro_use]

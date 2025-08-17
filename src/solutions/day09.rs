@@ -1,111 +1,107 @@
+use std::collections::VecDeque;
+
+use crate::range::Range;
 use crate::solutions::prelude::*;
 
 pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
     let data = parse!(input);
     let mut fs = FileSystem::new(&data);
-    fs.defrag();
+    fs.compact_frag();
     let checksum = fs.checksum();
     Ok(checksum.to_string())
 }
 
-pub fn problem2(_input: &str) -> Result<String, anyhow::Error> {
-    bail!("not yet implemented")
-}
-
-#[derive(Debug, Clone, Copy)]
-struct FileID(u16);
-
-impl FileID {
-    const FREE: Self = Self(u16::MAX);
-
-    const fn new(id: u16) -> Option<Self> {
-        if id == u16::MAX { None } else { Some(Self(id)) }
-    }
-
-    fn is_free(&self) -> bool {
-        self.0 == u16::MAX
-    }
-
-    fn get(&self) -> Option<u16> {
-        if self.0 == u16::MAX {
-            None
-        } else {
-            Some(self.0)
-        }
-    }
+pub fn problem2(input: &str) -> Result<String, anyhow::Error> {
+    let data = parse!(input);
+    let mut fs = FileSystem::new(&data);
+    fs.compact();
+    let checksum = fs.checksum();
+    Ok(checksum.to_string())
 }
 
 struct FileSystem {
-    sectors: Vec<FileID>,
+    files: Vec<Vec<Range>>,
+    free_list: VecDeque<Range>,
 }
 
 impl FileSystem {
     fn new(blocks: &[u8]) -> Self {
-        let disk_size: usize = blocks.iter().map(|&x| x as usize).sum();
-        let mut sectors = Vec::with_capacity(disk_size);
+        let mut files = Vec::new();
+        let mut free_list = VecDeque::new();
 
-        for (i, &block_size) in blocks.iter().enumerate() {
+        let mut cur = 0u64;
+
+        for (i, &size) in blocks.iter().enumerate() {
+            let end = cur + size as u64;
+            let r = Range::new(cur, end);
+            cur = end;
+
             match i % 2 == 0 {
-                true => {
-                    let id = FileID::new((i / 2) as u16).unwrap();
-                    for _ in 0..block_size {
-                        sectors.push(id);
-                    }
-                }
-                false => {
-                    for _ in 0..block_size {
-                        sectors.push(FileID::FREE);
-                    }
-                }
+                true => files.push(vec![r]),
+                false => free_list.push_back(r),
             }
         }
 
-        Self { sectors }
+        Self { files, free_list }
     }
 
-    fn defrag(&mut self) {
-        let Some(mut free_cur) = self.find_next_free(0) else {
-            return;
-        };
-        let Some(mut filled_cur) = self.find_last_filled(self.sectors.len() - 1) else {
-            return;
-        };
-
-        while free_cur < filled_cur {
-            self.sectors.swap(free_cur, filled_cur);
-
-            free_cur = match self.find_next_free(free_cur) {
-                Some(next) => next,
-                None => break,
+    fn compact_frag(&mut self) {
+        for file in self.files.iter_mut().rev() {
+            let Some(mut cur) = file.pop() else {
+                continue;
             };
-            filled_cur = match self.find_last_filled(filled_cur) {
-                Some(next) => next,
-                None => break,
-            };
+
+            while !cur.is_empty() {
+                let Some(free) = self.free_list.pop_front() else {
+                    file.push(cur);
+                    return;
+                };
+
+                if free.start > cur.end {
+                    file.push(cur);
+                    self.free_list.push_front(free);
+                    return;
+                }
+
+                let (new, rest_free) = free.split_front(cur.length());
+                let (new_cur, _) = cur.split_back(new.length());
+                cur = new_cur;
+                file.push(new);
+
+                if !rest_free.is_empty() {
+                    self.free_list.push_front(rest_free);
+                }
+            }
         }
     }
 
-    fn find_next_free(&self, start: usize) -> Option<usize> {
-        self.sectors
-            .iter()
-            .skip(start)
-            .position(|x| x.is_free())
-            .map(|p| p + start)
-    }
+    fn compact(&mut self) {
+        for file in self.files.iter_mut().rev() {
+            let Some(cur) = file.last_mut() else {
+                continue;
+            };
 
-    fn find_last_filled(&self, end: usize) -> Option<usize> {
-        self.sectors[..end + 1]
-            .iter()
-            .rev()
-            .position(|x| !x.is_free())
-            .map(|p| end - p)
+            let Some(free) = self
+                .free_list
+                .iter_mut()
+                .find(|x| x.length() >= cur.length())
+            else {
+                continue;
+            };
+
+            if free.start < cur.start {
+                let (new, rest_free) = free.split_front(cur.length());
+                *cur = new;
+                *free = rest_free;
+            }
+        }
     }
 
     fn checksum(&self) -> u64 {
-        self.sectors
+        self.files
             .iter()
             .enumerate()
-            .filter_map(|(i, x)| Some(i as u64 * x.get()? as u64))
+            .map(|(i, ranges)| i as u64 * ranges.iter().map(|x| x.sum()).sum::<u64>())
             .sum()
     }
 }
@@ -132,6 +128,6 @@ mod tests {
 
     #[test]
     fn problem2_test() {
-        //assert_eq!(problem2(EXAMPLE_INPUT).unwrap(), "")
+        assert_eq!(problem2(EXAMPLE_INPUT).unwrap(), "2858")
     }
 }
