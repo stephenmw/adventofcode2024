@@ -21,7 +21,7 @@ pub fn problem2(input: &str) -> Result<String, anyhow::Error> {
 
 struct FileSystem {
     files: Vec<Vec<Range>>,
-    free_list: VecDeque<Range>,
+    free_list: FreeList,
 }
 
 impl FileSystem {
@@ -42,7 +42,10 @@ impl FileSystem {
             }
         }
 
-        Self { files, free_list }
+        Self {
+            files,
+            free_list: FreeList::new(free_list.iter()),
+        }
     }
 
     fn compact_frag(&mut self) {
@@ -52,14 +55,14 @@ impl FileSystem {
             };
 
             while !cur.is_empty() {
-                let Some(free) = self.free_list.pop_front() else {
+                let Some(free) = self.free_list.pop_first(1) else {
                     file.push(cur);
                     return;
                 };
 
                 if free.start > cur.end {
                     file.push(cur);
-                    self.free_list.push_front(free);
+                    self.free_list.add(free);
                     return;
                 }
 
@@ -69,7 +72,7 @@ impl FileSystem {
                 file.push(new);
 
                 if !rest_free.is_empty() {
-                    self.free_list.push_front(rest_free);
+                    self.free_list.add(rest_free);
                 }
             }
         }
@@ -81,18 +84,14 @@ impl FileSystem {
                 continue;
             };
 
-            let Some(free) = self
-                .free_list
-                .iter_mut()
-                .find(|x| x.length() >= cur.length())
-            else {
+            let Some(free) = self.free_list.pop_first(cur.length()) else {
                 continue;
             };
 
             if free.start < cur.start {
                 let (new, rest_free) = free.split_front(cur.length());
                 *cur = new;
-                *free = rest_free;
+                self.free_list.add(rest_free);
             }
         }
     }
@@ -103,6 +102,45 @@ impl FileSystem {
             .enumerate()
             .map(|(i, ranges)| i as u64 * ranges.iter().map(|x| x.sum()).sum::<u64>())
             .sum()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct FreeList {
+    free_list: [VecDeque<Range>; 10],
+}
+
+impl FreeList {
+    fn new<'a, I: Iterator<Item = &'a Range>>(ranges: I) -> Self {
+        let mut ret = Self::default();
+        for &r in ranges {
+            ret.free_list[r.length() as usize].push_back(r);
+        }
+        for queue in &mut ret.free_list {
+            queue.make_contiguous().sort();
+        }
+        ret
+    }
+    fn add(&mut self, r: Range) {
+        let queue = &mut self.free_list[r.length() as usize];
+        let index = match queue.binary_search(&r) {
+            Ok(index) => index,
+            Err(index) => index,
+        };
+        queue.insert(index, r);
+    }
+
+    // pop the first free space of at least length
+    fn pop_first(&mut self, length: u64) -> Option<Range> {
+        let queue = self.free_list[length as usize..]
+            .iter_mut()
+            .filter_map(|q| {
+                let r = q.front()?.clone();
+                Some((q, r))
+            })
+            .min_by_key(|(_, r)| *r)
+            .map(|(q, _)| q)?;
+        queue.pop_front()
     }
 }
 
