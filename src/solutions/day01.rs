@@ -1,4 +1,5 @@
 use crate::solutions::prelude::*;
+use crate::utils;
 
 use ahash::AHashMap;
 
@@ -14,17 +15,12 @@ pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
 
 pub fn problem2(input: &str) -> Result<String, anyhow::Error> {
     let (list1, list2) = parse!(input);
-    let freq = freq_table(&list2);
-    let ans: u32 = list1.iter().map(|x| x * freq.get(x).unwrap_or(&0)).sum();
+    let freq = utils::freq_table(list2);
+    let ans: u64 = list1
+        .iter()
+        .map(|&x| x as u64 * freq.get(&x).unwrap_or(&0))
+        .sum();
     Ok(ans.to_string())
-}
-
-fn freq_table(list: &[u32]) -> AHashMap<u32, u32> {
-    let mut ret = AHashMap::new();
-    for &n in list {
-        *ret.entry(n).or_insert(0) += 1;
-    }
-    ret
 }
 
 mod parser {
