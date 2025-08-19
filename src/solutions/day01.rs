@@ -1,8 +1,6 @@
 use crate::solutions::prelude::*;
 use crate::utils;
 
-use ahash::AHashMap;
-
 pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
     let (mut list1, mut list2) = parse!(input);
     list1.sort();
