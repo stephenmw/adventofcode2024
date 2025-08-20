@@ -44,6 +44,7 @@ pub struct Solution {
 
 #[macro_use]
 mod prelude {
+    #[allow(unused_imports)]
     pub use anyhow::{Context, bail};
 
     macro_rules! parse {

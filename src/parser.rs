@@ -7,17 +7,14 @@ pub mod prelude {
     pub use nom::{
         AsChar, IResult, Input, Mode, Parser,
         branch::alt,
-        bytes::complete::{is_a, tag, take_while},
-        character::complete::{
-            alpha1, alphanumeric1, anychar, char, digit1, line_ending, multispace0, one_of, space0,
-            space1,
-        },
-        combinator::{eof, into, map, map_res, opt, recognize, value, verify},
-        error::ParseError,
-        multi::{count, fold_many1, many1, many1_count, separated_list1},
-        sequence::{delimited, pair, preceded, separated_pair, terminated},
+        bytes::complete::tag,
+        character::complete::{digit1, line_ending, multispace0, one_of, space0, space1},
+        combinator::{eof, opt, recognize},
+        multi::{fold_many1, many1, separated_list1},
+        sequence::{delimited, separated_pair, terminated},
     };
 
+    #[allow(unused_imports)]
     pub use super::{complete, int, uint, ws_all_consuming, ws_line};
 }
 
