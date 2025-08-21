@@ -8,8 +8,8 @@ pub mod prelude {
         AsChar, IResult, Input, Mode, Parser,
         branch::alt,
         bytes::complete::tag,
-        character::complete::{digit1, line_ending, multispace0, one_of, space0, space1},
-        combinator::{eof, opt, recognize},
+        character::complete::{char, digit1, line_ending, multispace0, one_of, space0, space1},
+        combinator::{eof, opt, recognize, value},
         multi::{fold_many1, many1, separated_list1},
         sequence::{delimited, separated_pair, terminated},
     };
