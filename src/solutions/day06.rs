@@ -1,9 +1,8 @@
 use crate::grid::{Direction, Grid, Point};
 use crate::solutions::prelude::*;
+use crate::utils::SortedSet;
 
 use ahash::AHashSet;
-
-use std::collections::BTreeSet;
 
 pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
     let grid = parse!(input);
@@ -110,26 +109,28 @@ enum GridElem {
 #[derive(Clone, Debug)]
 struct GridIndex {
     // x -> y values that contain walls.
-    x_index: Vec<BTreeSet<usize>>,
+    x_index: Vec<SortedSet<usize>>,
     // y -> x values that contain walls.
-    y_index: Vec<BTreeSet<usize>>,
+    y_index: Vec<SortedSet<usize>>,
 }
 
 impl GridIndex {
     fn new(grid: &Grid<GridElem>) -> Self {
         let (x_len, y_len) = grid.size();
-        let mut ret = Self {
-            x_index: vec![BTreeSet::new(); x_len],
-            y_index: vec![BTreeSet::new(); y_len],
-        };
+        let mut xs = vec![Vec::new(); x_len];
+        let mut ys = vec![Vec::new(); y_len];
 
         for (p, v) in grid.iter_items() {
             if v == &GridElem::Wall {
-                ret.insert(p)
+                xs[p.x].push(p.y);
+                ys[p.y].push(p.x);
             }
         }
 
-        ret
+        Self {
+            x_index: xs.into_iter().map(SortedSet::from).collect(),
+            y_index: ys.into_iter().map(SortedSet::from).collect(),
+        }
     }
 
     fn insert(&mut self, p: Point) {
@@ -146,22 +147,16 @@ impl GridIndex {
     fn next(&self, pos: Point, dir: Direction) -> Option<Point> {
         let wall_pos = match dir {
             Direction::Up => self.x_index[pos.x]
-                .range(pos.y + 1..)
-                .next()
+                .next_gt(&pos.y)
                 .map(|&y| Point::new(pos.x, y)),
             Direction::Down => self.x_index[pos.x]
-                .range(0..pos.y)
-                .rev()
-                .next()
+                .next_lt(&pos.y)
                 .map(|&y| Point::new(pos.x, y)),
             Direction::Right => self.y_index[pos.y]
-                .range(pos.x + 1..)
-                .next()
+                .next_gt(&pos.x)
                 .map(|&x| Point::new(x, pos.y)),
             Direction::Left => self.y_index[pos.y]
-                .range(0..pos.x)
-                .rev()
-                .next()
+                .next_lt(&pos.x)
                 .map(|&x| Point::new(x, pos.y)),
         }?;
 

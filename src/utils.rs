@@ -1,3 +1,6 @@
+pub mod sortedset;
+pub use sortedset::SortedSet;
+
 use ahash::AHashMap;
 
 pub fn freq_table<T>(values: impl IntoIterator<Item = T>) -> AHashMap<T, u64>
