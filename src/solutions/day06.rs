@@ -2,7 +2,8 @@ use crate::grid::{Direction, Grid, Point};
 use crate::solutions::prelude::*;
 
 use ahash::AHashSet;
-use anyhow::Ok;
+
+use std::collections::BTreeSet;
 
 pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
     let grid = parse!(input);
@@ -39,12 +40,14 @@ pub fn problem2(input: &str) -> Result<String, anyhow::Error> {
             .map(|(p, _)| p),
     );
 
+    let mut g_idx = GridIndex::new(&grid);
+
     let ans = candidates
         .iter()
         .filter(|&&c| {
-            let mut g = grid.clone();
-            *(g.get_mut(c).unwrap()) = GridElem::Wall;
-            let (_, is_loop) = get_guard_states(&g, start);
+            g_idx.insert(c);
+            let is_loop = detect_loop(&g_idx, start, Direction::Down);
+            g_idx.remove(c);
             is_loop
         })
         .count();
@@ -76,11 +79,94 @@ fn get_guard_states(grid: &Grid<GridElem>, start: Point) -> (AHashSet<(Point, Di
     }
 }
 
+fn detect_loop(g: &GridIndex, start: Point, dir: Direction) -> bool {
+    let mut cur_pos = start;
+    let mut cur_dir = dir;
+
+    let mut seen = AHashSet::new();
+    loop {
+        let Some(next_pos) = g.next(cur_pos, cur_dir) else {
+            return false;
+        };
+
+        let next_dir = cur_dir.rotate_left(); // rotates right
+
+        if !seen.insert((next_pos, next_dir)) {
+            return true;
+        }
+
+        cur_pos = next_pos;
+        cur_dir = next_dir; // rotates right
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum GridElem {
     Empty,
     Wall,
     GuardStart,
+}
+
+#[derive(Clone, Debug)]
+struct GridIndex {
+    // x -> y values that contain walls.
+    x_index: Vec<BTreeSet<usize>>,
+    // y -> x values that contain walls.
+    y_index: Vec<BTreeSet<usize>>,
+}
+
+impl GridIndex {
+    fn new(grid: &Grid<GridElem>) -> Self {
+        let (x_len, y_len) = grid.size();
+        let mut ret = Self {
+            x_index: vec![BTreeSet::new(); x_len],
+            y_index: vec![BTreeSet::new(); y_len],
+        };
+
+        for (p, v) in grid.iter_items() {
+            if v == &GridElem::Wall {
+                ret.insert(p)
+            }
+        }
+
+        ret
+    }
+
+    fn insert(&mut self, p: Point) {
+        self.x_index[p.x].insert(p.y);
+        self.y_index[p.y].insert(p.x);
+    }
+
+    fn remove(&mut self, p: Point) {
+        self.x_index[p.x].remove(&p.y);
+        self.y_index[p.y].remove(&p.x);
+    }
+
+    // returns location just before next wall.
+    fn next(&self, pos: Point, dir: Direction) -> Option<Point> {
+        let wall_pos = match dir {
+            Direction::Up => self.x_index[pos.x]
+                .range(pos.y + 1..)
+                .next()
+                .map(|&y| Point::new(pos.x, y)),
+            Direction::Down => self.x_index[pos.x]
+                .range(0..pos.y)
+                .rev()
+                .next()
+                .map(|&y| Point::new(pos.x, y)),
+            Direction::Right => self.y_index[pos.y]
+                .range(pos.x + 1..)
+                .next()
+                .map(|&x| Point::new(x, pos.y)),
+            Direction::Left => self.y_index[pos.y]
+                .range(0..pos.x)
+                .rev()
+                .next()
+                .map(|&x| Point::new(x, pos.y)),
+        }?;
+
+        wall_pos.next(dir.opposite())
+    }
 }
 
 mod parser {
