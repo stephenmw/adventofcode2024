@@ -1,3 +1,6 @@
+pub mod heapelem;
+pub use heapelem::RevHeapElem;
+
 use ahash::AHashMap;
 
 pub fn freq_table<T>(values: impl IntoIterator<Item = T>) -> AHashMap<T, u64>
