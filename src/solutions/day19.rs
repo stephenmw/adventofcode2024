@@ -1,29 +1,32 @@
 use crate::solutions::prelude::*;
+use crate::utils::Trie;
 
 pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
     let (towels, designs) = parse!(input);
+    let dictionary = Trie::from_iter(towels);
     let ans = designs
         .iter()
-        .filter(|d| num_designs(&towels, d) != 0)
+        .filter(|d| num_designs(&dictionary, d) != 0)
         .count();
     Ok(ans.to_string())
 }
 
 pub fn problem2(input: &str) -> Result<String, anyhow::Error> {
     let (towels, designs) = parse!(input);
-    let ans: u64 = designs.iter().map(|d| num_designs(&towels, d)).sum();
+    let dictionary = Trie::from_iter(towels);
+
+    let ans: u64 = designs.iter().map(|d| num_designs(&dictionary, d)).sum();
     Ok(ans.to_string())
 }
 
-fn num_designs(dictionary: &[&str], word: &str) -> u64 {
+fn num_designs(dictionary: &Trie, word: &str) -> u64 {
     let mut paths = vec![0; word.len() + 1];
     paths[0] = 1;
 
     for i in 0..word.len() {
         let cur = paths[i];
-        let candidates = dictionary.iter().filter(|&w| word[i..].starts_with(w));
-        for c in candidates {
-            paths[i + c.len()] += cur;
+        for w in dictionary.prefix_of(&word[i..]) {
+            paths[i + w.len()] += cur;
         }
     }
 
