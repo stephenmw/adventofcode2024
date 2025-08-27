@@ -59,5 +59,5 @@ mod prelude {
 }
 
 days!(
-    day01, day03, day05, day06, day07, day09, day10, day11, day16, day19
+    day01, day03, day05, day06, day07, day09, day10, day11, day16, day19, day23
 );

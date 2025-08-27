@@ -7,9 +7,9 @@ pub mod prelude {
     pub use nom::{
         AsChar, IResult, Input, Mode, Parser,
         branch::alt,
-        bytes::{is_a, tag},
+        bytes::{is_a, tag, take},
         character::complete::{char, digit1, line_ending, multispace0, one_of, space0, space1},
-        combinator::{eof, opt, recognize, value},
+        combinator::{eof, opt, recognize, value, verify},
         multi::{fold_many1, many1, separated_list1},
         sequence::{delimited, separated_pair, terminated},
     };
