@@ -3,7 +3,6 @@ use std::collections::BTreeSet;
 use ahash::{AHashMap, AHashSet};
 
 use crate::solutions::prelude::*;
-use crate::utils::freq_table;
 
 pub fn problem1(input: &str) -> Result<String, anyhow::Error> {
     let data = parse!(input);
@@ -63,18 +62,13 @@ pub fn problem2(input: &str) -> Result<String, anyhow::Error> {
 
 fn upper_bound(node: &NodeId, nodes: &AHashMap<NodeId, BTreeSet<NodeId>>) -> u64 {
     let neighbors = nodes.get(node).unwrap();
-    let neigh_in_common = neighbors
+    let mut neigh_in_common: Vec<_> = neighbors
         .iter()
-        .flat_map(|n| nodes.get(n).unwrap().intersection(neighbors));
-    let freq = freq_table(neigh_in_common);
+        .map(|n| nodes.get(n).unwrap().intersection(neighbors).count() as u64)
+        .collect();
+    neigh_in_common.sort_unstable();
 
-    let sorted_values = {
-        let mut xs: Vec<_> = freq.values().cloned().collect();
-        xs.sort_unstable();
-        xs
-    };
-
-    n_gt_n(&sorted_values) + 2
+    n_gt_n(&neigh_in_common) + 2
 }
 
 // Takes a sorted list and finds the highest n such that there are n numbers
